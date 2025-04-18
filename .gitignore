@@ -1,0 +1,48 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+env/
+ENV/
+
+# Model files
+*.h5
+*.hdf5
+
+# Dataset and large files
+data/
+
+
+# Test sample images
+test_samples/
+
+# IDE/editor specific
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+*.keras
+
+*.iml
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+
+# Bytecode
+__pycache__/
+*.py[cod]giut
+
+# Virtual environments
+
+my_handwritten_dataset/
+# IDE & system
+
+.venv_gpu/
+
+# Models & datasets

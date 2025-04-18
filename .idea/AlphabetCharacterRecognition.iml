@@ -3,6 +3,44 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/numpy/core/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/numpy/lib/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/numpy/random/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/numpy/typing/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/pkg_resources/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/interpolate/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/io/arff/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/io/matlab/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/io/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/linalg/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/ndimage/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/sparse/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/spatial/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/special/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/scipy/stats/tests/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorboard/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/_api/v2/__internal__/types/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/_api/v2/compat/v1/__internal__/types/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/_api/v2/compat/v1/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/_api/v2/compat/v2/__internal__/types/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/_api/v2/compat/v2/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/_api/v2/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/include/external/com_github_grpc_grpc/src/core/ext/upb-generated/udpa/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/include/tensorflow/core/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/include/tensorflow/core/grappler/optimizers/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/include/tensorflow/core/kernels/data" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/python/data" />
+      <excludeFolder url="file://$MODULE_DIR$/data" />
+      <excludeFolder url="file://$MODULE_DIR$/test_samples" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Include" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/google/_upb" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/jaxlib/cpu" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/pkg_resources/tests" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/include/external/com_github_grpc_grpc/src/core/ext/upb-generated/udpa" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/lite/python/analyzer_wrapper" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/lite/python/interpreter_wrapper" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/python/autograph/impl/testing" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv_gpu/Lib/site-packages/tensorflow/python/lib/core" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.9 (AlphabetCharacterRecognition)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
