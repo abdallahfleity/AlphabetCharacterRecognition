@@ -30,12 +30,10 @@ Thumbs.db
 
 *.iml
 # IDE/editor
-.idea/
-.vscode/
-*.iml
+
 
 # Bytecode
-__pycache__/
+
 *.py[cod]giut
 
 # Virtual environments

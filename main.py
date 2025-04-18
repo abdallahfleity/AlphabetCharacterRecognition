@@ -95,7 +95,7 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
 # Step 9: Save Model
-model.save("model/emnist_byclass_augmented_complex_version5.h5")
+model.save("model/emnist_byclass_augmented_complex_version7.keras")
 print("📁 Model saved to model/emnist_byclass_augmented_complex_version7.keras")
 
 
