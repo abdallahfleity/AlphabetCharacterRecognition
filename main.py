@@ -2,24 +2,18 @@ import os
 import numpy as np
 from model.cnn_model import build_deep_cnn_model
 from utils.preprocess import load_emnist_byclass
-from tensorflow.keras.utils import to_categorical, Sequence
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-import matplotlib.pyplot as plt
-import seaborn as sns
-from tensorflow.keras.losses import CategoricalCrossentropy
-
-
-import random
 
 # ===============================
 # Step 1: Load Your Handwritten Dataset
 # ===============================
-def load_handwritten_dataset(path='data/handwritten_dataset', image_size=(28, 28)):
+def load_handwritten_dataset(path='data/handwritten_dataset', image_size=(64, 64)):
     X, y = [], []
     for label in os.listdir(path):
         folder_path = os.path.join(path, label)
@@ -47,7 +41,7 @@ print(f"[✅] Loaded handwritten dataset: {custom_x.shape[0]} samples")
 # ===============================
 # Step 2: Load EMNIST Dataset
 # ===============================
-(train_x, train_y), (test_x, test_y) = load_emnist_byclass()
+(train_x, train_y), (test_x, test_y) = load_emnist_byclass(image_size=(64, 64))
 
 # ===============================
 # Step 3: Merge Your Data with EMNIST
@@ -74,100 +68,48 @@ X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=2/9,
 # ===============================
 # Step 5: One-Hot Encode Labels
 # ===============================
+y_train_cat = to_categorical(y_train, num_classes=52)
 y_val_cat = to_categorical(y_val, num_classes=52)
 y_test_cat = to_categorical(y_test, num_classes=52)
 
 # ===============================
-# Step 6: Custom Class-Specific Data Augmentation
+# Step 6: Data Augmentation
 # ===============================
-CONFUSING_LABELS = [ord(c)-65 if c.isupper() else ord(c)-71 for c in ['i','h','o','b','z','r','s','w','q']]
-
-class CombinedGenerator(Sequence):
-    def __init__(self, x, y, batch_size=128):
-        self.batch_size = batch_size
-
-        self.x_conf = x[np.isin(y, CONFUSING_LABELS)]
-        self.y_conf = y[np.isin(y, CONFUSING_LABELS)]
-
-        self.x_rest = x[~np.isin(y, CONFUSING_LABELS)]
-        self.y_rest = y[~np.isin(y, CONFUSING_LABELS)]
-
-        self.aug_conf = ImageDataGenerator(
-            zoom_range=0.1,
-            width_shift_range=0.15,
-            height_shift_range=0.15,
-            rotation_range=15
-        )
-
-        self.aug_rest = ImageDataGenerator(
-            zoom_range=0.05,
-            width_shift_range=0.1,
-            height_shift_range=0.1,
-            rotation_range=5
-        )
-
-        self.conf_gen = self.aug_conf.flow(self.x_conf, to_categorical(self.y_conf, 52), batch_size=batch_size//2)
-        self.rest_gen = self.aug_rest.flow(self.x_rest, to_categorical(self.y_rest, 52), batch_size=batch_size//2)
-
-    def __len__(self):
-        return min(len(self.conf_gen), len(self.rest_gen))
-
-    def __getitem__(self, idx):
-        x1, y1 = self.conf_gen[idx]
-        x2, y2 = self.rest_gen[idx]
-        return np.concatenate([x1, x2]), np.concatenate([y1, y2])
-
-train_generator = CombinedGenerator(X_train, y_train, batch_size=128)
+datagen = ImageDataGenerator(
+    zoom_range=0.05,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    rotation_range=5
+)
+datagen.fit(X_train)
 
 # ===============================
 # Step 7: Build Model
 # ===============================
-model = build_deep_cnn_model()
-model.compile(
-    optimizer=Adam(learning_rate=0.0005),
-    loss=CategoricalCrossentropy(label_smoothing=0.1),  # 👈 Smoothing added
-    metrics=['accuracy']
-)
+model = build_deep_cnn_model(input_shape=(64, 64, 1))
+model.compile(optimizer=Adam(learning_rate=0.0005), loss='categorical_crossentropy', metrics=['accuracy'])
 model.summary()
+
 # ===============================
 # Step 8: Train Model
 # ===============================
 early_stop = EarlyStopping(patience=5, restore_best_weights=True)
-reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
 
-history = model.fit(
-    train_generator,
+reduce_lr = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=3,
+    min_lr=1e-6,
+    verbose=1
+)
+
+model.fit(
+    datagen.flow(X_train, y_train_cat, batch_size=128),
     validation_data=(X_val, y_val_cat),
     epochs=25,
     callbacks=[early_stop, reduce_lr],
     verbose=1
 )
-
-# ===============================
-# Plot Training and Validation Accuracy & Loss
-# ===============================
-plt.figure(figsize=(14, 5))
-
-# Accuracy
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Train Accuracy')
-plt.plot(history.history['val_accuracy'], label='Val Accuracy')
-plt.title('Model Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-
-# Loss
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Train Loss')
-plt.plot(history.history['val_loss'], label='Val Loss')
-plt.title('Model Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-
-plt.tight_layout()
-plt.show()
 
 # ===============================
 # Step 9: Evaluate & Save
@@ -181,29 +123,6 @@ print(confusion_matrix(y_test, y_pred))
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
-# Confusion Matrix Visualization
-emnist_labels = [chr(i) for i in range(65, 91)] + [chr(i) for i in range(97, 123)]
-cm = confusion_matrix(y_test, y_pred)
-
-plt.figure(figsize=(16, 14))
-sns.heatmap(cm, annot=False, fmt="d", cmap="Blues", xticklabels=emnist_labels, yticklabels=emnist_labels)
-plt.xlabel("Predicted Label")
-plt.ylabel("True Label")
-plt.title("Confusion Matrix - EMNIST Characters")
-plt.show()
-
-# Focused Confusion Matrix on Confusing Letters
-confusing_chars = ['i','h','o','b','z','r','s','w','q']
-conf_indices = [emnist_labels.index(c) for c in confusing_chars]
-conf_cm = cm[np.ix_(conf_indices, conf_indices)]
-conf_labels = [emnist_labels[i] for i in conf_indices]
-
-plt.figure(figsize=(10, 8))
-sns.heatmap(conf_cm, annot=True, fmt="d", cmap="Reds", xticklabels=conf_labels, yticklabels=conf_labels)
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.title("Confusion Matrix – Focused on Confusing Characters")
-plt.show()
-
-model.save("model/emnist_byclass_augmented_complex_version8.keras")
-print("📁 Model saved to model/emnist_byclass_augmented_complex_version8.keras")
+# Save Model
+model.save("model/emnist_byclass_augmented_complex_version7_64x64.keras")
+print("📁 Model saved to model/emnist_byclass_augmented_complex_version7_64x64.keras")

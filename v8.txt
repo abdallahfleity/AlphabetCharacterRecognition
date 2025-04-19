@@ -1,0 +1,269 @@
+###main.py
+import os
+import numpy as np
+from model.cnn_model import build_deep_cnn_model
+from utils.preprocess import load_emnist_byclass
+from tensorflow.keras.utils import to_categorical, Sequence
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tensorflow.keras.losses import CategoricalCrossentropy
+
+
+import random
+
+# ===============================
+# Step 1: Load Your Handwritten Dataset
+# ===============================
+def load_handwritten_dataset(path='data/handwritten_dataset', image_size=(28, 28)):
+    X, y = [], []
+    for label in os.listdir(path):
+        folder_path = os.path.join(path, label)
+        if not os.path.isdir(folder_path):
+            continue
+
+        # Accept folders like a_lower, B_upper
+        if '_lower' in label or '_upper' in label:
+            char = label[0]
+            label_index = ord(char) - 65 if char.isupper() else ord(char) - 71  # A-Z → 0–25, a-z → 26–51
+            for img_file in os.listdir(folder_path):
+                if img_file.endswith(".png"):
+                    img = load_img(os.path.join(folder_path, img_file), color_mode='grayscale', target_size=image_size)
+                    arr = img_to_array(img) / 255.0
+                    X.append(arr)
+                    y.append(label_index)
+
+    if len(X) == 0:
+        print("[⚠️] No handwritten samples found.")
+    return np.array(X), np.array(y)
+
+custom_x, custom_y = load_handwritten_dataset()
+print(f"[✅] Loaded handwritten dataset: {custom_x.shape[0]} samples")
+
+# ===============================
+# Step 2: Load EMNIST Dataset
+# ===============================
+(train_x, train_y), (test_x, test_y) = load_emnist_byclass()
+
+# ===============================
+# Step 3: Merge Your Data with EMNIST
+# ===============================
+if custom_x.shape[0] > 0:
+    if len(custom_x.shape) == 3:
+        custom_x = np.expand_dims(custom_x, -1)
+
+    train_x = np.concatenate([train_x, custom_x])
+    train_y = np.concatenate([train_y, custom_y])
+    print("[✅] Handwritten samples merged into EMNIST.")
+else:
+    print("[⚠️] No handwritten samples merged. Continuing with EMNIST only.")
+
+# ===============================
+# Step 4: Split into Train/Val/Test
+# ===============================
+X_all = np.concatenate((train_x, test_x))
+y_all = np.concatenate((train_y, test_y))
+
+X_temp, X_test, y_temp, y_test = train_test_split(X_all, y_all, test_size=0.1, random_state=42, stratify=y_all)
+X_train, X_val, y_train, y_val = train_test_split(X_temp, y_temp, test_size=2/9, random_state=42, stratify=y_temp)
+
+# ===============================
+# Step 5: One-Hot Encode Labels
+# ===============================
+y_val_cat = to_categorical(y_val, num_classes=52)
+y_test_cat = to_categorical(y_test, num_classes=52)
+
+# ===============================
+# Step 6: Custom Class-Specific Data Augmentation
+# ===============================
+CONFUSING_LABELS = [ord(c)-65 if c.isupper() else ord(c)-71 for c in ['i','h','o','b','z','r','s','w','q']]
+
+class CombinedGenerator(Sequence):
+    def __init__(self, x, y, batch_size=128):
+        self.batch_size = batch_size
+
+        self.x_conf = x[np.isin(y, CONFUSING_LABELS)]
+        self.y_conf = y[np.isin(y, CONFUSING_LABELS)]
+
+        self.x_rest = x[~np.isin(y, CONFUSING_LABELS)]
+        self.y_rest = y[~np.isin(y, CONFUSING_LABELS)]
+
+        self.aug_conf = ImageDataGenerator(
+            zoom_range=0.1,
+            width_shift_range=0.15,
+            height_shift_range=0.15,
+            rotation_range=15
+        )
+
+        self.aug_rest = ImageDataGenerator(
+            zoom_range=0.05,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            rotation_range=5
+        )
+
+        self.conf_gen = self.aug_conf.flow(self.x_conf, to_categorical(self.y_conf, 52), batch_size=batch_size//2)
+        self.rest_gen = self.aug_rest.flow(self.x_rest, to_categorical(self.y_rest, 52), batch_size=batch_size//2)
+
+    def __len__(self):
+        return min(len(self.conf_gen), len(self.rest_gen))
+
+    def __getitem__(self, idx):
+        x1, y1 = self.conf_gen[idx]
+        x2, y2 = self.rest_gen[idx]
+        return np.concatenate([x1, x2]), np.concatenate([y1, y2])
+
+train_generator = CombinedGenerator(X_train, y_train, batch_size=128)
+
+# ===============================
+# Step 7: Build Model
+# ===============================
+model = build_deep_cnn_model()
+model.compile(
+    optimizer=Adam(learning_rate=0.0005),
+    loss=CategoricalCrossentropy(label_smoothing=0.1),  # 👈 Smoothing added
+    metrics=['accuracy']
+)
+model.summary()
+# ===============================
+# Step 8: Train Model
+# ===============================
+early_stop = EarlyStopping(patience=5, restore_best_weights=True)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-6, verbose=1)
+
+history = model.fit(
+    train_generator,
+    validation_data=(X_val, y_val_cat),
+    epochs=25,
+    callbacks=[early_stop, reduce_lr],
+    verbose=1
+)
+
+# ===============================
+# Plot Training and Validation Accuracy & Loss
+# ===============================
+plt.figure(figsize=(14, 5))
+
+# Accuracy
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Val Accuracy')
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+# Loss
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Val Loss')
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# ===============================
+# Step 9: Evaluate & Save
+# ===============================
+loss, acc = model.evaluate(X_test, y_test_cat)
+print(f"\n✅ Final Test Accuracy: {acc * 100:.2f}%")
+
+y_pred = np.argmax(model.predict(X_test), axis=1)
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# Confusion Matrix Visualization
+emnist_labels = [chr(i) for i in range(65, 91)] + [chr(i) for i in range(97, 123)]
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(16, 14))
+sns.heatmap(cm, annot=False, fmt="d", cmap="Blues", xticklabels=emnist_labels, yticklabels=emnist_labels)
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.title("Confusion Matrix - EMNIST Characters")
+plt.show()
+
+# Focused Confusion Matrix on Confusing Letters
+confusing_chars = ['i','h','o','b','z','r','s','w','q']
+conf_indices = [emnist_labels.index(c) for c in confusing_chars]
+conf_cm = cm[np.ix_(conf_indices, conf_indices)]
+conf_labels = [emnist_labels[i] for i in conf_indices]
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_cm, annot=True, fmt="d", cmap="Reds", xticklabels=conf_labels, yticklabels=conf_labels)
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix – Focused on Confusing Characters")
+plt.show()
+
+model.save("model/emnist_byclass_augmented_complex_version8.keras")
+print("📁 Model saved to model/emnist_byclass_augmented_complex_version8.keras")
+
+
+##cnn_model
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import (
+    Input, Conv2D, BatchNormalization, Activation,
+    Add, MaxPooling2D, GlobalAveragePooling2D,
+    Dense, Dropout, SpatialDropout2D
+)
+
+def residual_block(x, filters, kernel_size=(3, 3), stride=1):
+    shortcut = x
+
+    x = Conv2D(filters, kernel_size, strides=stride, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters, kernel_size, strides=1, padding='same')(x)
+    x = BatchNormalization()(x)
+
+    if shortcut.shape[-1] != x.shape[-1]:
+        shortcut = Conv2D(filters, (1, 1), strides=stride, padding='same')(shortcut)
+        shortcut = BatchNormalization()(shortcut)
+
+    x = Add()([x, shortcut])
+    x = Activation('relu')(x)
+    return x
+
+def build_deep_cnn_model():
+    inputs = Input(shape=(28, 28, 1))
+
+    # Initial lightweight conv to enhance low-level features
+    x = Conv2D(32, (1, 1), padding='same', activation='relu')(inputs)
+    x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+
+    # Residual blocks
+    x = residual_block(x, 64)
+    x = residual_block(x, 64)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = residual_block(x, 128)
+    x = residual_block(x, 128)
+    x = residual_block(x, 128)  # Added one more deep block
+
+    # Global feature compression
+    x = SpatialDropout2D(0.3)(x)
+    x = GlobalAveragePooling2D()(x)
+
+    # Dense layers
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.5)(x)
+
+    outputs = Dense(52, activation='softmax')(x)
+
+    model = Model(inputs, outputs)
+    return model
+
