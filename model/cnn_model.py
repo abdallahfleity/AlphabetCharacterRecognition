@@ -1,5 +1,9 @@
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, Activation, Add, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.layers import (
+    Input, Conv2D, BatchNormalization, Activation,
+    Add, MaxPooling2D, GlobalAveragePooling2D,
+    Dense, Dropout, SpatialDropout2D
+)
 
 def residual_block(x, filters, kernel_size=(3, 3), stride=1):
     shortcut = x
@@ -22,19 +26,28 @@ def residual_block(x, filters, kernel_size=(3, 3), stride=1):
 def build_deep_cnn_model():
     inputs = Input(shape=(28, 28, 1))
 
-    x = Conv2D(64, (3, 3), padding='same', activation='relu')(inputs)
+    # Initial lightweight conv to enhance low-level features
+    x = Conv2D(32, (1, 1), padding='same', activation='relu')(inputs)
+    x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2))(x)
 
+    # Residual blocks
     x = residual_block(x, 64)
     x = residual_block(x, 64)
     x = MaxPooling2D(pool_size=(2, 2))(x)
 
     x = residual_block(x, 128)
     x = residual_block(x, 128)
+    x = residual_block(x, 128)  # Added one more deep block
 
-    x = Flatten()(x)
-    x = Dense(256, activation='relu')(x)
+    # Global feature compression
+    x = SpatialDropout2D(0.3)(x)
+    x = GlobalAveragePooling2D()(x)
+
+    # Dense layers
+    x = Dense(128, activation='relu')(x)
     x = Dropout(0.5)(x)
+
     outputs = Dense(52, activation='softmax')(x)
 
     model = Model(inputs, outputs)
