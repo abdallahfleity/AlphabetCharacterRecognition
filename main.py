@@ -13,7 +13,7 @@ from tensorflow.keras.preprocessing.image import load_img, img_to_array
 # ===============================
 # Step 1: Load Your Handwritten Dataset
 # ===============================
-def load_handwritten_dataset(path='data/handwritten_dataset', image_size=(64, 64)):
+def load_handwritten_dataset(path='data/handwritten_dataset_64', image_size=(64, 64)):
     X, y = [], []
     for label in os.listdir(path):
         folder_path = os.path.join(path, label)
@@ -27,7 +27,7 @@ def load_handwritten_dataset(path='data/handwritten_dataset', image_size=(64, 64
             for img_file in os.listdir(folder_path):
                 if img_file.endswith(".png"):
                     img = load_img(os.path.join(folder_path, img_file), color_mode='grayscale', target_size=image_size)
-                    arr = img_to_array(img) / 255.0
+                    arr = img_to_array(img).astype(np.float32) / 255.0
                     X.append(arr)
                     y.append(label_index)
 
@@ -41,7 +41,7 @@ print(f"[✅] Loaded handwritten dataset: {custom_x.shape[0]} samples")
 # ===============================
 # Step 2: Load EMNIST Dataset
 # ===============================
-(train_x, train_y), (test_x, test_y) = load_emnist_byclass(image_size=(64, 64))
+(train_x, train_y), (test_x, test_y) = load_emnist_byclass()
 
 # ===============================
 # Step 3: Merge Your Data with EMNIST
@@ -86,7 +86,7 @@ datagen.fit(X_train)
 # ===============================
 # Step 7: Build Model
 # ===============================
-model = build_deep_cnn_model(input_shape=(64, 64, 1))
+model = build_deep_cnn_model()
 model.compile(optimizer=Adam(learning_rate=0.0005), loss='categorical_crossentropy', metrics=['accuracy'])
 model.summary()
 

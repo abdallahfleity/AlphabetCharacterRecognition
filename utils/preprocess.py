@@ -6,11 +6,11 @@ from PIL import Image
 def resize_images_to_64x64(images):
     resized = []
     for img in images:
-        # Convert single-channel 28x28 to PIL image
         pil_img = Image.fromarray((img.squeeze() * 255).astype(np.uint8))
         pil_img = pil_img.resize((64, 64), Image.Resampling.LANCZOS)
-        resized.append(np.array(pil_img) / 255.0)
-    resized = np.array(resized)
+        arr = np.array(pil_img).astype("float32") / 255.0   # 👈 Cast to float32 here
+        resized.append(arr)
+    resized = np.array(resized, dtype="float32")  # 👈 Also ensure the final array is float32
     return np.expand_dims(resized, axis=-1)
 
 def load_emnist_byclass(path='data/gzip'):
