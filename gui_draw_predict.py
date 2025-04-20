@@ -5,12 +5,13 @@ from PyQt5.QtGui import QPainter, QPen, QPixmap, QImage
 from PyQt5.QtCore import Qt, QPoint
 from tensorflow.keras.models import load_model
 from PIL import Image
+import cv2
 
-# === Load your trained model (Version 6) ===
-model = load_model("model/emnist_byclass_augmented_complex_version7.keras")
-print("✅ Loaded Version 6 Model!")
+# Load your trained model (Version 7 with handwritten data)
+model = load_model("model/alphabet_cnn.keras")
+print("✅ Loaded Version 7 Model!")
 
-# EMNIST ByClass (letters only) mapping: 0 → 'A', ..., 25 → 'Z', 26 → 'a', ..., 51 → 'z'
+# EMNIST ByClass (letters only): 0 → 'A' ... 25 → 'Z', 26 → 'a' ... 51 → 'z'
 emnist_labels = [chr(i) for i in range(65, 91)] + [chr(i) for i in range(97, 123)]
 
 class Canvas(QWidget):
@@ -54,7 +55,7 @@ class Canvas(QWidget):
 class DrawApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Draw a Character - Version 6")
+        self.setWindowTitle("Draw a Character - Version 7")
         self.canvas = Canvas()
 
         self.predict_btn = QPushButton("Predict")
@@ -74,67 +75,43 @@ class DrawApp(QWidget):
         self.setLayout(layout)
         self.setFixedSize(300, 400)
 
-    def predict(self):
-        from scipy.ndimage import center_of_mass
-        import cv2
+    def preprocess_image(self, image):
+        # Convert to grayscale
+        gray_img = image.convertToFormat(QImage.Format_Grayscale8)
+        ptr = gray_img.bits()
+        ptr.setsize(gray_img.byteCount())
+        arr = np.array(ptr).reshape((gray_img.height(), gray_img.width()))
 
-        # Step 1: Convert to grayscale NumPy array
-        image = self.canvas.get_image().convertToFormat(QImage.Format_Grayscale8)
-        ptr = image.bits()
-        ptr.setsize(image.byteCount())
-        arr = np.array(ptr).reshape((image.height(), image.width()))
-
-        # Step 2: Invert colors (black on white)
+        # Invert
         img = Image.fromarray(arr)
         img = Image.eval(img, lambda x: 255 - x)
-        img_np = np.array(img)
 
-        # Step 3: Auto-crop non-empty regions
-        coords = cv2.findNonZero(255 - img_np)
-        x, y, w, h = cv2.boundingRect(coords)
-        cropped = img_np[y:y + h, x:x + w]
+        # Resize to 28x28 with no aspect ratio or padding
+        img = img.resize((28, 28), Image.Resampling.LANCZOS)
 
-        # Step 4: Resize with padding to 28x28
-        target_size = 28
-        h, w = cropped.shape
-        scale = target_size / max(h, w)
-        resized = cv2.resize(cropped, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        # Normalize and reshape
+        img_np = np.array(img).astype("float32") / 255.0
+        img_np = np.expand_dims(img_np, axis=(0, -1))
 
-        pad_top = (target_size - resized.shape[0]) // 2
-        pad_bottom = target_size - resized.shape[0] - pad_top
-        pad_left = (target_size - resized.shape[1]) // 2
-        pad_right = target_size - resized.shape[1] - pad_left
-        padded = cv2.copyMakeBorder(resized, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_CONSTANT, value=0)
+        return img_np
 
-        # Step 5: Deskew using moments
-        moments = cv2.moments(padded)
-        if abs(moments["mu02"]) > 1e-2:
-            skew = moments["mu11"] / moments["mu02"]
-            M = np.float32([[1, skew, -0.5 * skew * padded.shape[0]], [0, 1, 0]])
-            padded = cv2.warpAffine(padded, M, (target_size, target_size),
-                                    flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR)
+    def predict(self):
+        image = self.canvas.get_image()
+        processed_input = self.preprocess_image(image)
 
-        # Step 6: Binary thresholding to sharpen
-        _, binarized = cv2.threshold(padded, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        # Step 7: Normalize & reshape
-        binarized = binarized.astype("float32") / 255.0
-        binarized = np.expand_dims(binarized, axis=(0, -1))
-
-        # Step 8: Visualize (optional)
-        import matplotlib.pyplot as plt
-        plt.imshow(binarized.squeeze(), cmap='gray')
-        plt.title("Processed Input")
-        plt.axis('off')
-        plt.show()
-
-        # Step 9: Predict
-        pred = model.predict(binarized)[0]
-        index = np.argmax(pred)
-        confidence = pred[index] * 100
-        predicted_char = emnist_labels[index]
+        prediction = model.predict(processed_input)[0]
+        predicted_index = np.argmax(prediction)
+        predicted_char = emnist_labels[predicted_index]
+        confidence = prediction[predicted_index] * 100
 
         self.result_label.setText(f"🎯 Predicted: '{predicted_char}' ({confidence:.2f}%)")
+
+        # Optional: visualize the preprocessed image
+        import matplotlib.pyplot as plt
+        plt.imshow(processed_input.squeeze(), cmap='gray')
+        plt.title(f"Input for Prediction: '{predicted_char}'")
+        plt.axis('off')
+        plt.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
