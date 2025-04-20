@@ -1,3 +1,100 @@
+cnn_model
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, Activation, Add, MaxPooling2D, Flatten, Dense, Dropout
+
+def residual_block(x, filters, kernel_size=(3, 3), stride=1):
+    shortcut = x
+
+    x = Conv2D(filters, kernel_size, strides=stride, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters, kernel_size, strides=1, padding='same')(x)
+    x = BatchNormalization()(x)
+
+    if shortcut.shape[-1] != x.shape[-1]:
+        shortcut = Conv2D(filters, (1, 1), strides=stride, padding='same')(shortcut)
+        shortcut = BatchNormalization()(shortcut)
+
+    x = Add()([x, shortcut])
+    x = Activation('relu')(x)
+    return x
+
+def build_deep_cnn_model():
+    inputs = Input(shape=(64, 64, 1))  # ⬅️ updated from 28x28 to 64x64
+
+    x = Conv2D(64, (3, 3), padding='same', activation='relu')(inputs)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = residual_block(x, 64)
+    x = residual_block(x, 64)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+
+    x = residual_block(x, 128)
+    x = residual_block(x, 128)
+
+    x = Flatten()(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(52, activation='softmax')(x)
+
+    model = Model(inputs, outputs)
+    return model
+
+
+ preprocess
+
+ import idx2numpy
+import numpy as np
+import os
+from PIL import Image
+
+def resize_images_to_64x64(images):
+    resized = []
+    for img in images:
+        pil_img = Image.fromarray((img.squeeze() * 255).astype(np.uint8))
+        pil_img = pil_img.resize((64, 64), Image.Resampling.LANCZOS)
+        arr = np.array(pil_img).astype("float32") / 255.0   # 👈 Cast to float32 here
+        resized.append(arr)
+    resized = np.array(resized, dtype="float32")  # 👈 Also ensure the final array is float32
+    return np.expand_dims(resized, axis=-1)
+
+def load_emnist_byclass(path='data/gzip'):
+    print("[INFO] Loading EMNIST ByClass (uppercase, lowercase only)...")
+
+    # Load raw data
+    train_images = idx2numpy.convert_from_file(os.path.join(path, "emnist-byclass-train-images-idx3-ubyte"))
+    train_labels = idx2numpy.convert_from_file(os.path.join(path, "emnist-byclass-train-labels-idx1-ubyte"))
+    test_images = idx2numpy.convert_from_file(os.path.join(path, "emnist-byclass-test-images-idx3-ubyte"))
+    test_labels = idx2numpy.convert_from_file(os.path.join(path, "emnist-byclass-test-labels-idx1-ubyte"))
+
+    # Normalize image data
+    train_images = train_images.astype("float32") / 255.0
+    test_images = test_images.astype("float32") / 255.0
+
+    # ✅ Remove digits (labels 0–9) and shift labels down by 10
+    train_labels = train_labels.flatten()
+    test_labels = test_labels.flatten()
+
+    train_mask = train_labels >= 10
+    test_mask = test_labels >= 10
+
+    train_images = train_images[train_mask]
+    train_labels = train_labels[train_mask] - 10
+    test_images = test_images[test_mask]
+    test_labels = test_labels[test_mask] - 10
+
+    # ✅ Resize to 64x64
+    train_images = resize_images_to_64x64(train_images)
+    test_images = resize_images_to_64x64(test_images)
+
+    print(f"[INFO] Loaded and resized: {train_images.shape[0]} train, {test_images.shape[0]} test.")
+    return (train_images, train_labels), (test_images, test_labels)
+
+
+main.py
+
 import os
 import numpy as np
 from model.cnn_model import build_deep_cnn_model
@@ -13,7 +110,7 @@ from tensorflow.keras.preprocessing.image import load_img, img_to_array
 # ===============================
 # Step 1: Load Your Handwritten Dataset
 # ===============================
-def load_handwritten_dataset(path='data/handwritten_dataset_28', image_size=(28, 28)):
+def load_handwritten_dataset(path='data/handwritten_dataset_64', image_size=(64, 64)):
     X, y = [], []
     for label in os.listdir(path):
         folder_path = os.path.join(path, label)
@@ -27,7 +124,7 @@ def load_handwritten_dataset(path='data/handwritten_dataset_28', image_size=(28,
             for img_file in os.listdir(folder_path):
                 if img_file.endswith(".png"):
                     img = load_img(os.path.join(folder_path, img_file), color_mode='grayscale', target_size=image_size)
-                    arr = img_to_array(img) / 255.0
+                    arr = img_to_array(img).astype(np.float32) / 255.0
                     X.append(arr)
                     y.append(label_index)
 
@@ -124,5 +221,6 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
 # Save Model
-model.save("model/emnist_byclass_augmented_complex_version7.keras")
-print("📁 Model saved to model/emnist_byclass_augmented_complex_version7.keras")
+model.save("model/emnist_byclass_augmented_complex_version7_64x64.keras")
+print("📁 Model saved to model/emnist_byclass_augmented_complex_version7_64x64.keras")
+

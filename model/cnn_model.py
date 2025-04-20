@@ -20,7 +20,7 @@ def residual_block(x, filters, kernel_size=(3, 3), stride=1):
     return x
 
 def build_deep_cnn_model():
-    inputs = Input(shape=(64, 64, 1))  # ⬅️ updated from 28x28 to 64x64
+    inputs = Input(shape=(28, 28, 1))
 
     x = Conv2D(64, (3, 3), padding='same', activation='relu')(inputs)
     x = MaxPooling2D(pool_size=(2, 2))(x)
