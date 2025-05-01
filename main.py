@@ -9,9 +9,9 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from model.cnn_model import build_emnist_cnn
 from utils.preprocess import load_emnist_byclass_letters_only
 
-# Load EMNIST (letters only)
+# Load EMNIST (letters only) here
 (train_x, train_y), (test_x, test_y) = load_emnist_byclass_letters_only()
-
+q=2
 # Combine train/test then split into train/val/test
 X_all = np.concatenate([train_x, test_x])
 y_all = np.concatenate([train_y, test_y])
