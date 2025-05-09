@@ -14,7 +14,7 @@ ENV/
 # Dataset and large files
 data/
 
-
+*.pt
 # Test sample images
 test_samples/
 
@@ -44,3 +44,8 @@ my_handwritten_dataset/
 .venv_gpu/
 
 # Models & datasets
+yolo_sentence_detection/dataset
+yolo_sentence_detection/models
+emnist_data
+Graph
+runs
