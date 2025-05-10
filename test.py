@@ -16,7 +16,7 @@ from tensorflow.keras.preprocessing.image  import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint
 from scipy.io import loadmat
 from sklearn.model_selection import train_test_split
-
+from visualizer_callback import TrainingVisualizerCallback
 
 def residual_block(x, filters):
     shortcut = x
@@ -140,10 +140,26 @@ def train(model, data, epochs=50, batch_size=256):
     model_path = 'bin/best_emnist_letters.keras'
     checkpoint = ModelCheckpoint(model_path, monitor='val_accuracy', save_best_only=True, verbose=1)
 
+    # Class names sorted by their label index
+    label_map = {v: k for k, v in mapping.items()}  # inverse mapping
+    sorted_labels = sorted(set(y_train))
+    class_names = [chr(label_map[l]) for l in sorted_labels]
+
+    # Use the first image from validation as feature map visualization target
+    feature_img = x_val[0]
+
+    visualizer = TrainingVisualizerCallback(
+        X_val=x_val,
+        y_val=y_val_cat,
+        class_names=class_names,
+        interval=5,
+        feature_map_img=feature_img
+    )
+
     model.fit(datagen.flow(x_train, y_train, batch_size=batch_size),
               epochs=epochs,
               validation_data=(x_val, y_val),
-              callbacks=[checkpoint])
+              callbacks=[checkpoint,visualizer])
 
     print("✔️ Training complete. Model saved as:", model_path)
 
