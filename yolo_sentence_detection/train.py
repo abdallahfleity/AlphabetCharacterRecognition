@@ -1,11 +1,11 @@
 from ultralytics import YOLO
 
-# Load the pretrained YOLOv8 model
-model = YOLO("runs/detect/char_segment_finetuned/weights/best.pt")  # Or use a fine-tuned model path like "runs/detect/char_segment_finetuned/weights/best.pt"
+# Load YOLOv8x pretrained on COCO
+model = YOLO("yolov8x.pt")
 
-# Start training with augmentation and monitoring
+# Train on your character detection dataset
 model.train(
-    data="dataset/dataset.yaml",  # Path to your dataset config
+    data="dataset/dataset.yaml",  # 🔁 path to your dataset.yaml
     epochs=100,
     imgsz=640,
     batch=16,
@@ -15,18 +15,17 @@ model.train(
     amp=True,
     val=True,
     plots=True,
-    cache=True,
 
-    # 🔁 Data Augmentation
-    mosaic=1.0,  # Enables mosaic augmentation
-    mixup=0.2,  # Mixes multiple images together (use small value)
-    hsv_h=0.015,  # Hue augmentation
-    hsv_s=0.7,  # Saturation augmentation
-    hsv_v=0.4,  # Value augmentation
-    flipud=0.0,  # Vertical flip probability (keep 0 for letters)
-    fliplr=0.5,  # Horizontal flip probability
+    # Data Augmentation
+    mosaic=1.0,
+    mixup=0.2,
+    hsv_h=0.015,
+    hsv_s=0.7,
+    hsv_v=0.4,
+    flipud=0.0,
+    fliplr=0.5,
 
     project="runs/detect",
-    name="char_segment_finetuned",
+    name="char_detector_yolov8x",
     pretrained=True
 )
