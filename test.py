@@ -145,7 +145,7 @@ def train(model, data, epochs=50, batch_size=256):
     sorted_labels = sorted(set(y_train))
     class_names = [chr(label_map[l]) for l in sorted_labels]
 
-    # Use the first image from validation as feature map visualization target
+
     feature_img = x_val[0]
 
     visualizer = TrainingVisualizerCallback(
